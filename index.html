@@ -27,7 +27,14 @@
     .screen { display: none; }
     .screen.active { display: block; }
     h1 { font-size: 22px; font-weight: 600; color: #1a1a18; margin-bottom: 6px; }
-    .subtitle { font-size: 14px; color: #777; margin-bottom: 1.5rem; }
+    .subtitle { font-size: 14px; color: #777; margin-bottom: 1.25rem; }
+    .name-input-wrap { margin-bottom: 1.25rem; }
+    .name-input-wrap label { font-size: 13px; color: #555; display: block; margin-bottom: 6px; font-weight: 500; }
+    .name-input-wrap input {
+      width: 100%; padding: 10px 12px; font-size: 15px;
+      border: 1px solid #ddd; border-radius: 10px; outline: none;
+    }
+    .name-input-wrap input:focus { border-color: #185FA5; }
     .level-btn {
       display: block; width: 100%; padding: 1rem 1.25rem;
       margin-bottom: 10px; background: #fff;
@@ -40,6 +47,22 @@
     .level-btn.easy .lname { color: #0F6E56; }
     .level-btn.medium .lname { color: #185FA5; }
     .level-btn.hard .lname { color: #993C1D; }
+    .leaderboard { margin-top: 1.5rem; }
+    .lb-title { font-size: 13px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .lb-empty { font-size: 13px; color: #aaa; text-align: center; padding: 1rem 0; }
+    .lb-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 10px; margin-bottom: 4px;
+      background: #f5f5f0;
+    }
+    .lb-row.highlight { background: #e8f4ee; }
+    .lb-rank { font-size: 13px; font-weight: 600; color: #999; min-width: 20px; }
+    .lb-rank.gold { color: #c89a00; }
+    .lb-rank.silver { color: #888; }
+    .lb-rank.bronze { color: #a0522d; }
+    .lb-name { font-size: 14px; font-weight: 500; color: #1a1a18; flex: 1; }
+    .lb-level { font-size: 11px; color: #999; }
+    .lb-score { font-size: 14px; font-weight: 600; color: #1a1a18; }
     .progress-track { height: 7px; background: #eee; border-radius: 4px; overflow: hidden; margin-bottom: 1.5rem; }
     .progress-bar { height: 100%; border-radius: 4px; transition: width 0.1s linear; width: 100%; }
     .progress-bar.green { background: #1D9E75; }
@@ -77,15 +100,15 @@
       0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)}
     }
     .shake { animation: shake 0.35s ease; }
-    .result-box { text-align: center; padding: 1rem 0; }
-    .result-score { font-size: 52px; font-weight: 700; color: #1a1a18; margin: 1rem 0 0.25rem; }
-    .result-label { font-size: 15px; color: #777; margin-bottom: 1.5rem; }
-    .stars { font-size: 36px; margin-bottom: 1rem; letter-spacing: 6px; }
-    .result-stats { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+    .result-box { text-align: center; padding: 0.5rem 0; }
+    .result-score { font-size: 52px; font-weight: 700; color: #1a1a18; margin: 0.5rem 0 0.25rem; }
+    .result-label { font-size: 15px; color: #777; margin-bottom: 1rem; }
+    .stars { font-size: 36px; margin-bottom: 0.5rem; letter-spacing: 6px; }
+    .result-stats { display: flex; gap: 8px; margin-bottom: 1rem; }
     .play-again {
       width: 100%; padding: 13px; font-size: 15px; font-weight: 600;
       background: #1a1a18; color: #fff; border: none;
-      border-radius: 12px; cursor: pointer; transition: opacity 0.15s;
+      border-radius: 12px; cursor: pointer; transition: opacity 0.15s; margin-bottom: 1.5rem;
     }
     .play-again:hover { opacity: 0.85; }
     .back-btn {
@@ -93,6 +116,7 @@
       border: none; cursor: pointer; margin-bottom: 1.5rem; padding: 0;
     }
     .back-btn:hover { color: #1a1a18; }
+    .divider { border: none; border-top: 1px solid #eee; margin: 1rem 0; }
   </style>
 </head>
 <body>
@@ -101,6 +125,12 @@
   <div id="screen-menu" class="screen active">
     <h1>Math Game</h1>
     <p class="subtitle">10 questions, 4 operations. Pick your level.</p>
+
+    <div class="name-input-wrap">
+      <label for="player-name">Your name</label>
+      <input type="text" id="player-name" placeholder="Enter your name..." maxlength="20" />
+    </div>
+
     <button class="level-btn easy" onclick="startGame('easy')">
       <div class="lname">Easy</div>
       <div class="ldesc">Numbers 1–10 &nbsp;·&nbsp; 10 seconds per question</div>
@@ -113,6 +143,11 @@
       <div class="lname">Hard</div>
       <div class="ldesc">Numbers 1–50 &nbsp;·&nbsp; 6 seconds per question</div>
     </button>
+
+    <div class="leaderboard">
+      <div class="lb-title">Last 10 players</div>
+      <div id="lb-list"></div>
+    </div>
   </div>
 
   <div id="screen-game" class="screen">
@@ -145,6 +180,9 @@
         <div class="stat-card"><div class="stat-label">Level</div><div class="stat-val" id="r-level">Easy</div></div>
       </div>
       <button class="play-again" onclick="showMenu()">Play again</button>
+      <hr class="divider">
+      <div class="lb-title" style="text-align:left; margin-bottom:8px;">Last 10 players</div>
+      <div id="lb-list-result"></div>
     </div>
   </div>
 
@@ -152,7 +190,7 @@
 <script>
 const LEVELS={easy:{max:10,time:10},medium:{max:25,time:8},hard:{max:50,time:6}};
 const OPS=['+','-','×','÷'];
-let level,qIndex,score,streak,bestStreak,correctAnswer,timerVal,timerMax,timerInterval,questionTimes,questionStart,answered,gameActive;
+let level,qIndex,score,streak,bestStreak,correctAnswer,timerVal,timerMax,timerInterval,questionTimes,questionStart,answered,gameActive,playerName,lastEntryIndex;
 
 function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
 
@@ -167,14 +205,61 @@ function genQuestion(lvl){
   return{text,ans};
 }
 
+function getLeaderboard(){
+  try{return JSON.parse(localStorage.getItem('mathgame_lb')||'[]');}
+  catch(e){return[];}
+}
+
+function saveLeaderboard(lb){
+  localStorage.setItem('mathgame_lb',JSON.stringify(lb));
+}
+
+function addEntry(entry){
+  const lb=getLeaderboard();
+  lb.unshift(entry);
+  const trimmed=lb.slice(0,10);
+  saveLeaderboard(trimmed);
+  return trimmed;
+}
+
+function renderLeaderboard(containerId, highlightIndex){
+  const lb=getLeaderboard();
+  const el=document.getElementById(containerId);
+  if(!lb.length){el.innerHTML='<div class="lb-empty">No players yet — be the first!</div>';return;}
+  const medals=['🥇','🥈','🥉'];
+  el.innerHTML=lb.map((e,i)=>{
+    const isHighlight=(i===highlightIndex);
+    const rankClass=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const rankLabel=i<3?medals[i]:`${i+1}.`;
+    return `<div class="lb-row${isHighlight?' highlight':''}">
+      <span class="lb-rank ${rankClass}">${rankLabel}</span>
+      <span class="lb-name">${e.name}</span>
+      <span class="lb-level">${e.level}</span>
+      <span class="lb-score">${e.score}/10</span>
+    </div>`;
+  }).join('');
+}
+
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
-function showMenu(){clearInterval(timerInterval);gameActive=false;showScreen('screen-menu');}
+function showMenu(){
+  clearInterval(timerInterval);gameActive=false;
+  renderLeaderboard('lb-list', -1);
+  showScreen('screen-menu');
+}
 
 function startGame(lvl){
+  const nameInput=document.getElementById('player-name').value.trim();
+  if(!nameInput){
+    document.getElementById('player-name').focus();
+    document.getElementById('player-name').style.borderColor='#E24B4A';
+    setTimeout(()=>document.getElementById('player-name').style.borderColor='',1500);
+    return;
+  }
+  playerName=nameInput;
   level=lvl;qIndex=0;score=0;streak=0;bestStreak=0;questionTimes=[];gameActive=true;
   showScreen('screen-game');
   document.getElementById('stat-score').textContent='0';
@@ -256,14 +341,20 @@ function endGame(){
   else if(pct>=0.4){stars='★☆☆';label='Keep practising!';}
   else{stars='☆☆☆';label='Give it another go!';}
   const avg=questionTimes.length?questionTimes.reduce((a,b)=>a+b,0)/questionTimes.length:0;
+  const entry={name:playerName,score,level:level.charAt(0).toUpperCase()+level.slice(1),avg:avg.toFixed(1)};
+  addEntry(entry);
+  lastEntryIndex=0;
   document.getElementById('result-stars').textContent=stars;
   document.getElementById('result-score').textContent=score+' / 10';
   document.getElementById('result-label').textContent=label;
   document.getElementById('r-streak').textContent=bestStreak;
   document.getElementById('r-avgtime').textContent=avg.toFixed(1)+'s';
-  document.getElementById('r-level').textContent=level.charAt(0).toUpperCase()+level.slice(1);
+  document.getElementById('r-level').textContent=entry.level;
+  renderLeaderboard('lb-list-result', lastEntryIndex);
   showScreen('screen-result');
 }
+
+renderLeaderboard('lb-list', -1);
 </script>
 </body>
 </html>
