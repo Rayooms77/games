@@ -57,9 +57,6 @@
     }
     .lb-row.highlight { background: #e8f4ee; }
     .lb-rank { font-size: 13px; font-weight: 600; color: #999; min-width: 20px; }
-    .lb-rank.gold { color: #c89a00; }
-    .lb-rank.silver { color: #888; }
-    .lb-rank.bronze { color: #a0522d; }
     .lb-name { font-size: 14px; font-weight: 500; color: #1a1a18; flex: 1; }
     .lb-level { font-size: 11px; color: #999; }
     .lb-score { font-size: 14px; font-weight: 600; color: #1a1a18; }
@@ -73,19 +70,18 @@
       padding: 2rem 1.25rem; text-align: center; margin-bottom: 1rem;
     }
     .question-text { font-size: 38px; font-weight: 600; color: #1a1a18; letter-spacing: -1px; }
-    .answer-row { display: flex; gap: 8px; margin-bottom: 1rem; }
-    .answer-row input {
-      flex: 1; font-size: 20px; text-align: center; padding: 10px 12px;
-      border: 1px solid #ddd; border-radius: 10px; outline: none;
+    .choices { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+    .choice-btn {
+      width: 100%; padding: 14px; font-size: 20px; font-weight: 600;
+      background: #fff; color: #1a1a18;
+      border: 1.5px solid #ddd; border-radius: 12px;
+      cursor: pointer; transition: background 0.12s, border-color 0.12s;
     }
-    .answer-row input:focus { border-color: #185FA5; }
-    .answer-row button {
-      padding: 10px 20px; font-size: 15px; font-weight: 600;
-      background: #1a1a18; color: #fff; border: none;
-      border-radius: 10px; cursor: pointer; transition: opacity 0.15s;
-    }
-    .answer-row button:hover { opacity: 0.85; }
-    .feedback { min-height: 28px; text-align: center; font-size: 14px; font-weight: 600; margin-bottom: 1rem; }
+    .choice-btn:hover:not(:disabled) { background: #f5f5f0; border-color: #bbb; }
+    .choice-btn.correct { background: #e8f4ee; border-color: #1D9E75; color: #0F6E56; }
+    .choice-btn.wrong { background: #fdecea; border-color: #E24B4A; color: #993C1D; }
+    .choice-btn:disabled { cursor: default; }
+    .feedback { min-height: 24px; text-align: center; font-size: 14px; font-weight: 600; margin-bottom: 1rem; }
     .feedback.correct { color: #0F6E56; }
     .feedback.wrong { color: #993C1D; }
     .stats-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
@@ -125,12 +121,10 @@
   <div id="screen-menu" class="screen active">
     <h1>Math Game</h1>
     <p class="subtitle">10 questions, 4 operations. Pick your level.</p>
-
     <div class="name-input-wrap">
       <label for="player-name">Your name</label>
       <input type="text" id="player-name" placeholder="Enter your name..." maxlength="20" />
     </div>
-
     <button class="level-btn easy" onclick="startGame('easy')">
       <div class="lname">Easy</div>
       <div class="ldesc">Numbers 1–10 &nbsp;·&nbsp; 10 seconds per question</div>
@@ -143,7 +137,6 @@
       <div class="lname">Hard</div>
       <div class="ldesc">Numbers 1–50 &nbsp;·&nbsp; 6 seconds per question</div>
     </button>
-
     <div class="leaderboard">
       <div class="lb-title">Last 10 players</div>
       <div id="lb-list"></div>
@@ -158,10 +151,7 @@
       <div class="question-text" id="question-text">?</div>
     </div>
     <div class="feedback" id="feedback"></div>
-    <div class="answer-row">
-      <input type="number" id="answer-input" placeholder="?" autocomplete="off" onkeydown="if(event.key==='Enter')submitAnswer()">
-      <button onclick="submitAnswer()">Submit</button>
-    </div>
+    <div class="choices" id="choices"></div>
     <div class="stats-row">
       <div class="stat-card"><div class="stat-label">Score</div><div class="stat-val" id="stat-score">0</div></div>
       <div class="stat-card"><div class="stat-label">Streak</div><div class="stat-val" id="stat-streak">0</div></div>
@@ -190,7 +180,7 @@
 <script>
 const LEVELS={easy:{max:10,time:10},medium:{max:25,time:8},hard:{max:50,time:6}};
 const OPS=['+','-','×','÷'];
-let level,qIndex,score,streak,bestStreak,correctAnswer,timerVal,timerMax,timerInterval,questionTimes,questionStart,answered,gameActive,playerName,lastEntryIndex;
+let level,qIndex,score,streak,bestStreak,correctAnswer,timerVal,timerMax,timerInterval,questionTimes,questionStart,answered,gameActive,playerName;
 
 function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
 
@@ -205,14 +195,31 @@ function genQuestion(lvl){
   return{text,ans};
 }
 
+function genChoices(correct){
+  const choices=new Set([correct]);
+  const offsets=[1,2,3,4,5,6,7,8,9,10];
+  let attempts=0;
+  while(choices.size<3&&attempts<30){
+    const offset=offsets[Math.floor(Math.random()*offsets.length)]*(Math.random()<0.5?1:-1);
+    const val=correct+offset;
+    if(val>0&&val!==correct)choices.add(val);
+    attempts++;
+  }
+  while(choices.size<3){choices.add(correct+choices.size*2);}
+  return shuffle([...choices]);
+}
+
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
+  return arr;
+}
+
 function getLeaderboard(){
   try{return JSON.parse(localStorage.getItem('mathgame_lb')||'[]');}
   catch(e){return[];}
 }
 
-function saveLeaderboard(lb){
-  localStorage.setItem('mathgame_lb',JSON.stringify(lb));
-}
+function saveLeaderboard(lb){localStorage.setItem('mathgame_lb',JSON.stringify(lb));}
 
 function addEntry(entry){
   const lb=getLeaderboard();
@@ -222,17 +229,16 @@ function addEntry(entry){
   return trimmed;
 }
 
-function renderLeaderboard(containerId, highlightIndex){
+function renderLeaderboard(containerId,highlightIndex){
   const lb=getLeaderboard();
   const el=document.getElementById(containerId);
   if(!lb.length){el.innerHTML='<div class="lb-empty">No players yet — be the first!</div>';return;}
   const medals=['🥇','🥈','🥉'];
   el.innerHTML=lb.map((e,i)=>{
     const isHighlight=(i===highlightIndex);
-    const rankClass=i===0?'gold':i===1?'silver':i===2?'bronze':'';
     const rankLabel=i<3?medals[i]:`${i+1}.`;
     return `<div class="lb-row${isHighlight?' highlight':''}">
-      <span class="lb-rank ${rankClass}">${rankLabel}</span>
+      <span class="lb-rank">${rankLabel}</span>
       <span class="lb-name">${e.name}</span>
       <span class="lb-level">${e.level}</span>
       <span class="lb-score">${e.score}/10</span>
@@ -247,7 +253,7 @@ function showScreen(id){
 
 function showMenu(){
   clearInterval(timerInterval);gameActive=false;
-  renderLeaderboard('lb-list', -1);
+  renderLeaderboard('lb-list',-1);
   showScreen('screen-menu');
 }
 
@@ -273,16 +279,31 @@ function nextQuestion(){
   answered=false;
   const q=genQuestion(level);
   correctAnswer=q.ans;
+  const choices=genChoices(correctAnswer);
   document.getElementById('question-text').textContent=q.text+' = ?';
   document.getElementById('q-counter').textContent='Question '+(qIndex+1)+' of 10';
   document.getElementById('feedback').textContent='';
   document.getElementById('feedback').className='feedback';
-  document.getElementById('answer-input').value='';
-  document.getElementById('answer-input').focus();
+  const choicesEl=document.getElementById('choices');
+  choicesEl.innerHTML=choices.map(c=>`<button class="choice-btn" onclick="selectChoice(${c},this)">${c}</button>`).join('');
   timerMax=LEVELS[level].time;timerVal=timerMax;
   updateTimerBar();questionStart=Date.now();
   clearInterval(timerInterval);
   timerInterval=setInterval(tickTimer,100);
+}
+
+function selectChoice(val,btn){
+  if(answered)return;
+  clearInterval(timerInterval);
+  const isCorrect=(val===correctAnswer);
+  btn.classList.add(isCorrect?'correct':'wrong');
+  if(!isCorrect){
+    document.querySelectorAll('.choice-btn').forEach(b=>{
+      if(parseInt(b.textContent)===correctAnswer)b.classList.add('correct');
+    });
+  }
+  document.querySelectorAll('.choice-btn').forEach(b=>b.disabled=true);
+  processAnswer(isCorrect,false);
 }
 
 function tickTimer(){
@@ -300,15 +321,14 @@ function updateTimerBar(){
   else bar.className='progress-bar red';
 }
 
-function submitAnswer(){
+function timeOut(){
   if(answered)return;
-  const val=parseInt(document.getElementById('answer-input').value,10);
-  if(isNaN(val))return;
-  clearInterval(timerInterval);
-  processAnswer(val===correctAnswer,false);
+  document.querySelectorAll('.choice-btn').forEach(b=>{
+    b.disabled=true;
+    if(parseInt(b.textContent)===correctAnswer)b.classList.add('correct');
+  });
+  processAnswer(false,true);
 }
-
-function timeOut(){if(answered)return;processAnswer(false,true);}
 
 function processAnswer(correct,timeout){
   answered=true;
@@ -321,7 +341,7 @@ function processAnswer(correct,timeout){
     fb.textContent='Correct!';fb.className='feedback correct';
   }else{
     streak=0;
-    fb.textContent=(timeout?'Time up! ':'Wrong! ')+'Answer: '+correctAnswer;
+    fb.textContent=(timeout?'Time up!':'Wrong!');
     fb.className='feedback wrong';
     qbox.classList.remove('shake');void qbox.offsetWidth;qbox.classList.add('shake');
   }
@@ -329,7 +349,8 @@ function processAnswer(correct,timeout){
   document.getElementById('stat-streak').textContent=streak;
   document.getElementById('stat-best').textContent=bestStreak;
   qIndex++;
-  setTimeout(()=>{qbox.classList.remove('shake');if(gameActive)nextQuestion();},1200);
+  const delay=qIndex>=10?800:1200;
+  setTimeout(()=>{qbox.classList.remove('shake');if(gameActive)nextQuestion();},delay);
 }
 
 function endGame(){
@@ -343,18 +364,17 @@ function endGame(){
   const avg=questionTimes.length?questionTimes.reduce((a,b)=>a+b,0)/questionTimes.length:0;
   const entry={name:playerName,score,level:level.charAt(0).toUpperCase()+level.slice(1),avg:avg.toFixed(1)};
   addEntry(entry);
-  lastEntryIndex=0;
   document.getElementById('result-stars').textContent=stars;
   document.getElementById('result-score').textContent=score+' / 10';
   document.getElementById('result-label').textContent=label;
   document.getElementById('r-streak').textContent=bestStreak;
   document.getElementById('r-avgtime').textContent=avg.toFixed(1)+'s';
   document.getElementById('r-level').textContent=entry.level;
-  renderLeaderboard('lb-list-result', lastEntryIndex);
+  renderLeaderboard('lb-list-result',0);
   showScreen('screen-result');
 }
 
-renderLeaderboard('lb-list', -1);
+renderLeaderboard('lb-list',-1);
 </script>
 </body>
 </html>
